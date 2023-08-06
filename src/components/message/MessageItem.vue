@@ -12,10 +12,19 @@
         <span v-if="false">{{ time }}</span>
       </div>
       <div class="message-content" v-if="message.type==='text'">
-        {{ message.content }}
+        {{ message.content.text }}
       </div>
-      <div class="message-content" v-if="message.type==='img'">
-        <el-image :src="apiPrefix+message.content" style="height: 30vw;cursor: pointer;" loading="lazy" @click="show.openOverScreenBoxWithParams(ShowImage,apiPrefix+message.content)"></el-image>
+      <div class="message-image" v-else-if="message.type==='img'">
+        <el-image :src="apiPrefix+message.content.imgPath" style="height: 30vw;cursor: pointer;" loading="lazy" @click="show.openOverScreenBoxWithParams(ShowImage,apiPrefix+message.content.imgPath)"></el-image>
+      </div>
+      <div class="message-content message-file" v-else-if="message.type==='file'">
+        <div class="message-file-button">
+          <el-icon :size="24" color="#409EFC" @click="courseDownload(apiPrefix+message.content.filepath,message.content.filename)"><Bottom /></el-icon>
+        </div>
+        <div class="message-file-info">
+          <span class="message-file-info-name">{{ message.content.filename }}</span>
+          <span>{{ message.content.size+" "+message.content.unit }}</span>
+        </div>
       </div>
     </div>
   </div>
@@ -29,6 +38,7 @@ import dayjs from "dayjs";
 import {reactive, ref, onMounted, computed} from "vue";
 import {useGroup, useOverScreenBox} from "@/views/index/store/stores.js";
 import ShowImage from "@/components/showbox/ShowImage.vue";
+import courseDownload from "@/utils/File.js";
 
 const apiPrefix = import.meta.env.VITE_API_URL
 const group = useGroup()
@@ -76,6 +86,38 @@ const time = computed(() => {
       word-wrap: break-word;
       word-break: break-all;
       white-space: pre-wrap;
+    }
+    .message-file{
+      display: flex;
+      align-items: center;
+      .message-file-button{
+        width: 40px;
+        height: 40px;
+        background: white;
+        border-radius: 50%;
+        flex-shrink: 0;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        margin-right: 10px;
+        cursor: pointer;
+      }
+      .message-file-info{
+        display: flex;
+        flex-direction: column;
+        flex-wrap: nowrap;
+        width: 100%; /* 容器宽度 */
+        //white-space: nowrap; /* 强制文本在一行显示 */
+        overflow: hidden; /* 隐藏超出容器范围的文本 */
+        -o-text-overflow: ellipsis;
+        //.message-file-info-name{
+        //
+        //}
+      }
+    }
+    .message-image{
+      border-radius: 10px;
+      overflow: hidden;
     }
   }
 }

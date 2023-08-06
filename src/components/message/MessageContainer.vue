@@ -13,7 +13,8 @@
     </div>
     <div class="send-box">
       <el-button @click="sendPic" :icon="PictureFilled" text></el-button>
-      <el-input v-model="message.content" type="textarea" :autosize="{ minRows: 1, maxRows: 4 }"></el-input>
+      <el-button @click="sendFile" :icon="Paperclip" text></el-button>
+      <el-input v-model="message.content" @keyup.enter.native="sendMessage" type="textarea" :autosize="{ minRows: 1, maxRows: 4 }"></el-input>
       <input type="file" ref="fileBox" @change="uploadFile" hidden>
       <el-button @click="sendMessage" :icon="Promotion" text :disabled="!message.content"></el-button>
     </div>
@@ -23,12 +24,11 @@
 
 <script setup>
 import MessageItem from "@/components/message/MessageItem.vue";
-import SockJS from 'sockjs-client/dist/sockjs.min.js';
-import Stomp from 'stompjs';
+// import SockJS from 'sockjs-client/dist/sockjs.min.js';
+import {Client} from '@stomp/stompjs'
 import {inject, nextTick, onMounted, reactive, ref, watch} from "vue";
 import {useSettings, useGroup} from '@/views/index/store/stores.js'
-import {Back, PictureFilled, Promotion} from "@element-plus/icons-vue";
-import Codes from "@/utils/Codes.js";
+import {Back, FolderAdd, Paperclip, PictureFilled, Promotion} from "@element-plus/icons-vue";
 import {throttle, debounce} from "lodash";
 
 const group = useGroup()
@@ -38,8 +38,8 @@ const messageList = ref([])
 const messageListBox = ref()
 const fileBox = ref()
 const connecting = ref(".")
-const sockjsClient = reactive({
-  socket: undefined,
+const stomp = reactive({
+  subscription: undefined,
   stomp: undefined
 })
 const props = defineProps(["groupId"])
@@ -58,62 +58,75 @@ const scrollLoad = throttle(() => {
   }
 }, 500)
 
-function loadMessage(groupId) {
+function loadMessage() {
   if (finishLoad) return
   axios.get('/message', {
     params: {
-      groupId: groupId,
+      groupId: props.groupId,
       start: minuid,
     }
   })
       .then(res => {
-        if (res.data.code === Codes.SUCCESS) {
-          let ml = res.data.data;
-          if (ml.length === 0) {
-            finishLoad = true
-            console.log(ml, ml.length, finishLoad)
-            return
-          }
-          for (let i = 0; i < ml.length; i++) {
-            messageList.value.unshift(ml[i])
-            // if (ml[i].type==="img")
-            //   imgurls.unshift(ml[i].content)
-          }
-          if (minuid < 0) {
-            scrollToBottom()
-          }
-          minuid = ml[ml.length - 1].uid
+        let ml = res.data.data;
+        if (ml.length === 0) {
+          finishLoad = true
+          console.log(ml, ml.length, finishLoad)
+          return
         }
+        for (let i = 0; i < ml.length; i++) {
+          ml[i].content=JSON.parse(ml[i].content)
+          messageList.value.unshift(ml[i])
+          // if (ml[i].type==="img")
+          //   imgurls.unshift(ml[i].content)
+        }
+        if (minuid < 0) {
+          scrollToBottom()
+        }
+        minuid = ml[ml.length - 1].uid
+
       })
 }
 
-function connect(groupId) {
-  let socket = new SockJS(apiPrefix + "/ws")
-  sockjsClient.socket = socket
-  console.log(socket)
-  let stompClient = Stomp.over(socket)
-  stompClient.connect({}, (frame) => {
-        finishLoad = false
-        minuid = -1
-        connecting.value = undefined
-        messageList.value = []
-        imgurls = []
-        loadMessage(groupId)
-        stompClient.subscribe("/forward/" + props.groupId, (message) => {
-          let operation = JSON.parse(message.body)
-          if (operation.type === "new") {
-            messageList.value.push(operation.message)
-          }
-        })
-      }, debounce(() => {//断开连接或连接失败时执行
-        console.debug("connection to " + groupId + " closed, trying to reconnect")
-        connect(props.groupId)
-        if (connecting.value === undefined || connecting.value.length >= 6) connecting.value = "."
-        else connecting.value += "."
-      }, 1000)
-  )
-  console.log(stompClient)
-  sockjsClient.stomp = stompClient
+async function connect() {
+  stomp.stomp = new Client({
+    brokerURL: "ws://localhost:8089" + "/ws",//可以不赋值，因为后面用SockJS来代替
+    // connectHeaders: {"Authorization": this.token},
+    debug: function (str) {
+      console.log(str);
+    },
+    reconnectDelay: 6000,//重连时间
+    heartbeatIncoming: 4000,
+    heartbeatOutgoing: 4000,
+  });
+  // stompClient.webSocketFactory=function (){
+  //   return new SockJS(apiPrefix + "/ws")
+  // }
+  // stomp.stomp.onConnect=(frame) => {
+  //   finishLoad = false
+  //   minuid = -1
+  //   connecting.value = undefined
+  //   messageList.value = []
+  //   imgurls = []
+  //   loadMessage(groupId)
+  // }
+  await stomp.stomp.activate()
+  console.log(stomp)
+}
+
+function subscribe() {
+  finishLoad = false
+  minuid = -1
+  connecting.value = undefined
+  messageList.value = []
+  imgurls = []
+  loadMessage(props.groupId)
+  stomp.subscription = stomp.stomp.subscribe("/forward/" + props.groupId, (message) => {
+    let operation = JSON.parse(message.body)
+    if (operation.type === "new") {
+      operation.message.content=JSON.parse(operation.message.content)
+      messageList.value.push(operation.message)
+    }
+  })
 }
 
 function sendMessage() {
@@ -121,16 +134,18 @@ function sendMessage() {
   axios.post("/message", message)
       .then(res => {
         console.log(res)
-        if (res.data.code === Codes.SUCCESS) {
-          console.log("success")
-          message.content = ""
-          scrollToBottom()
-        }
+        message.content = ""
+        scrollToBottom()
       })
 }
 
 function sendPic() {
   message.type = "img"
+  fileBox.value.click()
+}
+
+function sendFile() {
+  message.type = "file"
   fileBox.value.click()
 }
 
@@ -160,18 +175,18 @@ function scrollToBottom() {
 watch(() => props.groupId, (newGroupId, oldGroupId) => {
   if (newGroupId === oldGroupId) return
   else if (!newGroupId) return;
-  if (sockjsClient.socket !== undefined) {
-    sockjsClient.socket.close()
+  if (stomp.subscription !== undefined) {
+    stomp.subscription.unsubscribe()
   }
+  subscribe()
   console.debug("watch", newGroupId, oldGroupId)
-  connect()
   message.groupId = newGroupId
   console.debug("detected group change", newGroupId, oldGroupId)
 })
 onMounted(() => {
-  connect(props.groupId)
   message.groupId = props.groupId
-  console.debug(import("../group/GroupAdd.vue"))
+  console.debug("mount")
+  connect()
 })
 
 </script>

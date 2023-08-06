@@ -32,8 +32,8 @@ onMounted(() => {
 <template>
     <div class="main-box">
         <GroupContainer class="group-box" v-if="wideWindow || !group.groupId"></GroupContainer>
-        <MessageContainer class="message-box" :group-id="group.groupId" v-if="group.groupId"></MessageContainer>
-        <div class="empty-box" v-if="!group.groupId && wideWindow">
+        <MessageContainer class="message-box" :group-id="group.groupId" v-show="group.groupId"></MessageContainer>
+        <div class="empty-box" v-show="!group.groupId && wideWindow">
             <span>选择一个群组开始对话</span>
         </div>
         <div class="tool-background" v-if="overScreenBox.showOverScreenBox" ref="toolBack" @click="closeToolBox">

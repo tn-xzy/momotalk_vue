@@ -1,7 +1,7 @@
 <script setup>
 import {reactive} from "vue";
 import axios from "axios";
-import Codes from "@/utils/Codes.js";
+import {ResultCodes} from "@/utils/Codes.js";
 const apiPrefix=import.meta.env.VITE_API_URL
 
 const loginInfo=reactive({
@@ -12,8 +12,8 @@ function login(){
   axios.get(apiPrefix+"/user",{
     params:loginInfo
   }).then(res=>{
-    console.log(res)
-    if (res.data.code===Codes.SUCCESS){
+    // console.log("login",res,res.data.code,ResultCodes.SUCCESS)
+    if (res.data.code===ResultCodes.SUCCESS){
       localStorage.setItem("username",loginInfo.username)
       window.location.href="/index.html"
     }

@@ -8,7 +8,7 @@ import axios from "axios";
 import mitt from "mitt";
 import VueEasyLightbox from "vue-easy-lightbox";
 import {ElMessageBox} from "element-plus";
-import Codes from "@/utils/Codes.js";
+import {ResultCodes,ErrCodes} from "@/utils/Codes.js";
 axios.interceptors.request.use(function (config) {
   const baseURL = import.meta.env.VITE_API_URL
   config.url = baseURL + config.url
@@ -16,8 +16,11 @@ axios.interceptors.request.use(function (config) {
   return config
 })
 axios.interceptors.response.use(function (res) {
-  if (res.data.code!==Codes.SUCCESS)
-    window.location="/login.html"
+  if (res.data.code===ResultCodes.ERROR)
+    switch (res.data.errcode) {
+      case ErrCodes.NOLOGIN:
+        window.location="/login.html"
+    }
   return res
 }, function (error) {
   console.debug("拦截响应-请求报错", error)
