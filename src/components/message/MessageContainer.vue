@@ -9,7 +9,7 @@
       <div>2</div>
     </div>
     <div class="message-list" ref="messageListBox" @scroll="scrollLoad">
-      <MessageItem v-for="message in messageList" :key="message.uid" :message="message"></MessageItem>
+      <MessageItem v-for="message in messageList" :key="message.uid" :message="message" :progress="message.progress"></MessageItem>
     </div>
     <div class="send-box">
       <el-button @click="sendPic" :icon="PictureFilled" text></el-button>
@@ -24,7 +24,6 @@
 
 <script setup>
 import MessageItem from "@/components/message/MessageItem.vue";
-// import SockJS from 'sockjs-client/dist/sockjs.min.js';
 import {Client} from '@stomp/stompjs'
 import {inject, nextTick, onMounted, reactive, ref, watch} from "vue";
 import {useSettings, useGroup} from '@/views/index/store/stores.js'
@@ -34,7 +33,7 @@ import {throttle, debounce} from "lodash";
 const group = useGroup()
 const settings = useSettings()
 const apiPrefix = settings.apiPrefix
-const messageList = ref([])
+const messageList = reactive([])
 const messageListBox = ref()
 const fileBox = ref()
 const connecting = ref(".")
@@ -75,7 +74,7 @@ function loadMessage() {
         }
         for (let i = 0; i < ml.length; i++) {
           ml[i].content=JSON.parse(ml[i].content)
-          messageList.value.unshift(ml[i])
+          messageList.unshift(ml[i])
           // if (ml[i].type==="img")
           //   imgurls.unshift(ml[i].content)
         }
@@ -98,17 +97,6 @@ async function connect() {
     heartbeatIncoming: 4000,
     heartbeatOutgoing: 4000,
   });
-  // stompClient.webSocketFactory=function (){
-  //   return new SockJS(apiPrefix + "/ws")
-  // }
-  // stomp.stomp.onConnect=(frame) => {
-  //   finishLoad = false
-  //   minuid = -1
-  //   connecting.value = undefined
-  //   messageList.value = []
-  //   imgurls = []
-  //   loadMessage(groupId)
-  // }
   await stomp.stomp.activate()
   console.log(stomp)
 }
@@ -117,25 +105,35 @@ function subscribe() {
   finishLoad = false
   minuid = -1
   connecting.value = undefined
-  messageList.value = []
+  messageList.length =0
   imgurls = []
   loadMessage(props.groupId)
   stomp.subscription = stomp.stomp.subscribe("/forward/" + props.groupId, (message) => {
     let operation = JSON.parse(message.body)
     if (operation.type === "new") {
-      operation.message.content=JSON.parse(operation.message.content)
-      messageList.value.push(operation.message)
+      let message=operation.message;
+      if (message.sender!==localStorage.getItem("username")){
+        message.content=JSON.parse(operation.message.content)
+        messageList.push(operation.message)
+      }
     }
   })
 }
 
 function sendMessage() {
   message.type = "text"
+  let newMessage=Object.assign({},message)
+  newMessage.sender=localStorage.getItem("username")
+  newMessage.content={text:newMessage.content}
+  newMessage.sending=true
+  messageList.push(newMessage)
+  scrollToBottom()
   axios.post("/message", message)
       .then(res => {
         console.log(res)
         message.content = ""
-        scrollToBottom()
+        newMessage.uid=res.data.data
+        newMessage.sending=false
       })
 }
 
@@ -150,18 +148,49 @@ function sendFile() {
 }
 
 function uploadFile(e) {
-  console.log(e)
   const file = e.target.files[0];
   if (file === undefined) return
   const formData = new FormData();
   formData.append("file", file)
   formData.append("type", message.type)
   formData.append("groupId", message.groupId)
+  let newMessage=reactive({
+    sender:localStorage.getItem('username'),
+    progress:0
+  })
+  Object.assign(newMessage,message)
+  if (message.type==="img"){
+    let URL = window.URL || window.webkitURL;
+    let imgURL = URL.createObjectURL(file);
+    newMessage.content={
+      imgPath:imgURL
+    }
+
+  }else if (message.type==="file"){
+    let size=file.size;
+    let units=["bytes","kb","mb","gb","tb"]
+    let index=0;
+    while (size>=1024&&index<units.length){
+      size/=1024;index++;
+    }
+    newMessage.content={
+      filename:file.name,
+      size:size.toFixed(2),
+      unit:units[index]
+    }
+  }
+  messageList.push(newMessage)
+  scrollToBottom()
   axios.post("/message", formData, {
-    'Content-type': 'multipart/form-data'
+    'Content-type': 'multipart/form-data',
+    onUploadProgress: function(progressEvent) {
+      console.log(progressEvent.loaded / progressEvent.total*100)
+      let progress=progressEvent.loaded / progressEvent.total*100
+      newMessage.progress=Math.round(progress * 100) / 100
+    }
   }).then(res => {
     fileBox.value.value = ""
-    scrollToBottom()
+    newMessage.uid=res.data.data
   })
 }
 

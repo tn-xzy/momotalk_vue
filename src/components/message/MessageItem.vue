@@ -12,10 +12,11 @@
         <span v-if="false">{{ time }}</span>
       </div>
       <div class="message-content" v-if="message.type==='text'">
-        {{ message.content.text }}
+        <el-icon v-if="message.sending" class="is-loading"><Loading /></el-icon>{{ message.content.text }}
       </div>
       <div class="message-image" v-else-if="message.type==='img'">
-        <el-image :src="apiPrefix+message.content.imgPath" style="height: 30vw;cursor: pointer;" loading="lazy" @click="show.openOverScreenBoxWithParams(ShowImage,apiPrefix+message.content.imgPath)"></el-image>
+        <el-image v-if="message.content.imgPath!==undefined&&!message.content.imgPath.startsWith('blob')" :src="apiPrefix+message.content.imgPath" style="height: 30vw;cursor: pointer;" loading="lazy" @click="show.openOverScreenBoxWithParams(ShowImage,apiPrefix+message.content.imgPath)"></el-image>
+        <el-image v-else :src="message.content.imgPath" style="height: 30vw;cursor: pointer;" loading="lazy" @click="show.openOverScreenBoxWithParams(ShowImage,message.content.imgPath)"></el-image>
       </div>
       <div class="message-content message-file" v-else-if="message.type==='file'">
         <div class="message-file-button">
@@ -25,6 +26,10 @@
           <span class="message-file-info-name">{{ message.content.filename }}</span>
           <span>{{ message.content.size+" "+message.content.unit }}</span>
         </div>
+
+      </div>
+      <div style="margin: 0 10px">
+        <el-progress v-if="props.progress!==undefined&& props.progress<100" :percentage="props.progress" />
       </div>
     </div>
   </div>
@@ -35,7 +40,7 @@
 
 <script setup>
 import dayjs from "dayjs";
-import {reactive, ref, onMounted, computed} from "vue";
+import {reactive, ref, onMounted, computed, watch} from "vue";
 import {useGroup, useOverScreenBox} from "@/views/index/store/stores.js";
 import ShowImage from "@/components/showbox/ShowImage.vue";
 import courseDownload from "@/utils/File.js";
@@ -44,7 +49,7 @@ const apiPrefix = import.meta.env.VITE_API_URL
 const group = useGroup()
 const self = group.self
 console.log("self", group.self)
-const props = defineProps(['message'])
+const props = defineProps(['message','progress'])
 const message = props.message
 const show=useOverScreenBox()
 
@@ -54,6 +59,9 @@ const time = computed(() => {
   let time = dayjs("2016-09-20", "YYYY-MM-DD").unix()
   time += Number(timeOffset)
   return dayjs.unix(time).format("HH:mm")
+})
+watch(() => props.progress, (newP, oldP) => {
+  console.debug(newP,oldP)
 })
 </script>
 
@@ -77,6 +85,8 @@ const time = computed(() => {
     }
 
     .message-content {
+      display: flex;
+      align-items: center;
       padding: 10px;
       margin-top: 5px;
       border-radius: 10px;
