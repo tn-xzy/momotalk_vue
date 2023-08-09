@@ -11,25 +11,29 @@
         <span>{{ message.sender }}</span>
         <span v-if="false">{{ time }}</span>
       </div>
-      <div class="message-content" v-if="message.type==='text'">
-        <el-icon v-if="message.sending" class="is-loading"><Loading /></el-icon>{{ message.content.text }}
-      </div>
-      <div class="message-image" v-else-if="message.type==='img'">
-        <el-image v-if="message.content.imgPath!==undefined&&!message.content.imgPath.startsWith('blob')" :src="apiPrefix+message.content.imgPath" style="height: 30vw;cursor: pointer;" loading="lazy" @click="show.openOverScreenBoxWithParams(ShowImage,apiPrefix+message.content.imgPath)"></el-image>
-        <el-image v-else :src="message.content.imgPath" style="height: 30vw;cursor: pointer;" loading="lazy" @click="show.openOverScreenBoxWithParams(ShowImage,message.content.imgPath)"></el-image>
-      </div>
-      <div class="message-content message-file" v-else-if="message.type==='file'">
-        <div class="message-file-button">
-          <el-icon :size="24" color="#409EFC" @click="courseDownload(apiPrefix+message.content.filepath,message.content.filename)"><Bottom /></el-icon>
+      <div class="message-inner">
+        <div class="message-content" v-if="message.type==='text'">
+          <el-icon v-if="message.sending" class="is-loading"><Loading /></el-icon>
+          {{ message.content.text }}
         </div>
-        <div class="message-file-info">
-          <span class="message-file-info-name">{{ message.content.filename }}</span>
-          <span>{{ message.content.size+" "+message.content.unit }}</span>
+        <div class="message-image" v-else-if="message.type==='img'">
+          <el-image v-if="message.content.imgPath!==undefined&&!message.content.imgPath.startsWith('blob')" :src="apiPrefix+message.content.imgPath" style="height: 30vw;cursor: pointer;" loading="lazy" @click="show.openOverScreenBoxWithParams(ShowImage,apiPrefix+message.content.imgPath)"></el-image>
+          <el-image v-else :src="message.content.imgPath" style="height: 30vw;cursor: pointer;" loading="lazy" @click="show.openOverScreenBoxWithParams(ShowImage,message.content.imgPath)"></el-image>
         </div>
+        <div class="message-content message-file" v-else-if="message.type==='file'">
+          <div class="message-file-button">
+            <el-icon :size="24" color="#409EFC" @click="courseDownload(apiPrefix+message.content.filepath,message.content.filename)"><Bottom /></el-icon>
+          </div>
+          <div class="message-file-info">
+            <span class="message-file-info-name">{{ message.content.filename }}</span>
+            <span>{{ message.content.size+" "+message.content.unit }}</span>
+          </div>
 
+        </div>
+        <span class="message-tip" v-if="message.type!=='img'"></span>
       </div>
-      <div style="margin: 0 10px">
-        <el-progress v-if="props.progress!==undefined&& props.progress<100" :percentage="props.progress" />
+      <div v-if="props.progress!==undefined&& props.progress<100" style="margin: 0 10px">
+        <el-progress :percentage="props.progress" />
       </div>
     </div>
   </div>
@@ -75,59 +79,74 @@ watch(() => props.progress, (newP, oldP) => {
   }
 
   .message-box {
-    margin: 0 10px;
-    display: flex;
-    flex-direction: column;
+    margin: 0 15px;
+    //display: flex;
+    //flex-direction: column;
 
-    .message-top {
-      display: flex;
-      justify-content: space-between;
-    }
-
-    .message-content {
-      display: flex;
-      align-items: center;
-      padding: 10px;
-      margin-top: 5px;
-      border-radius: 10px;
-      //box-shadow: var(--el-box-shadow-light);
-      background: rgb(102, 104, 104);
-      color: white;
-      word-wrap: break-word;
-      word-break: break-all;
-      white-space: pre-wrap;
-    }
-    .message-file{
-      display: flex;
-      align-items: center;
-      .message-file-button{
-        width: 40px;
-        height: 40px;
-        background: white;
-        border-radius: 50%;
-        flex-shrink: 0;
+    .message-inner{
+      position: relative;
+      .message-top {
         display: flex;
-        justify-content: center;
+        justify-content: space-between;
+      }
+      .message-content {
+        display: flex;
         align-items: center;
-        margin-right: 10px;
-        cursor: pointer;
+        padding: 10px;
+        margin-top: 5px;
+        border-radius: 10px 0px 10px 10px;
+        //box-shadow: var(--el-box-shadow-light);
+        background: rgb(102, 104, 104);
+        color: white;
+        word-wrap: break-word;
+        word-break: break-all;
+        white-space: pre-wrap;
       }
-      .message-file-info{
+      .message-file{
         display: flex;
-        flex-direction: column;
-        flex-wrap: nowrap;
-        width: 100%; /* 容器宽度 */
-        //white-space: nowrap; /* 强制文本在一行显示 */
-        overflow: hidden; /* 隐藏超出容器范围的文本 */
-        -o-text-overflow: ellipsis;
-        //.message-file-info-name{
-        //
-        //}
+        align-items: center;
+        .message-file-button{
+          width: 40px;
+          height: 40px;
+          background: white;
+          border-radius: 50%;
+          flex-shrink: 0;
+          display: flex;
+          justify-content: center;
+          align-items: center;
+          margin-right: 10px;
+          cursor: pointer;
+        }
+        .message-file-info{
+          display: flex;
+          flex-direction: column;
+          flex-wrap: nowrap;
+          width: 100%; /* 容器宽度 */
+          //white-space: nowrap; /* 强制文本在一行显示 */
+          overflow: hidden; /* 隐藏超出容器范围的文本 */
+          -o-text-overflow: ellipsis;
+          //.message-file-info-name{
+          //
+          //}
+        }
       }
-    }
-    .message-image{
-      border-radius: 10px;
-      overflow: hidden;
+      .message-image{
+        border-radius: 10px;
+        overflow: hidden;
+      }
+      .message-tip{
+        position: absolute;
+        right: -10px;
+        top:0px;
+        width: 0;
+        height: 0;
+        border-color: transparent rgb(102, 104, 104); /*上下颜色 左右颜色*/
+        border-width: 0 0 10px 10px;
+        border-style: solid;
+        stroke-width: 2;
+        stroke-dasharray: 20, 20;
+        //border-radius: ;
+      }
     }
   }
 }

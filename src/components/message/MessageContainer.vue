@@ -33,8 +33,11 @@ import {throttle, debounce} from "lodash";
 const group = useGroup()
 const settings = useSettings()
 const apiPrefix = settings.apiPrefix
-const messageList = reactive([])
+const messageList = ref([])
 const messageListBox = ref()
+const sendBySelf=reactive(new Map())
+const receivedMaySelf=reactive(new Map())
+console.log(receivedMaySelf)
 const fileBox = ref()
 const connecting = ref(".")
 const stomp = reactive({
@@ -50,45 +53,43 @@ const message = reactive({
 const axios = inject("$axios");
 let minuid = -1
 let finishLoad = false
+let loading=false
 let imgurls = []
+let sendByThis=0
 const scrollLoad = throttle(() => {
   if (messageListBox.value.scrollTop < 5) {
     loadMessage(props.groupId)
   }
 }, 500)
-
-function loadMessage() {
-  if (finishLoad) return
-  axios.get('/message', {
+async function loadMessage() {
+  if (finishLoad||loading) return
+  loading=true
+  let res=await axios.get('/message', {
     params: {
       groupId: props.groupId,
       start: minuid,
     }
   })
-      .then(res => {
-        let ml = res.data.data;
-        if (ml.length === 0) {
-          finishLoad = true
-          console.log(ml, ml.length, finishLoad)
-          return
-        }
-        for (let i = 0; i < ml.length; i++) {
-          ml[i].content=JSON.parse(ml[i].content)
-          messageList.unshift(ml[i])
-          // if (ml[i].type==="img")
-          //   imgurls.unshift(ml[i].content)
-        }
-        if (minuid < 0) {
-          scrollToBottom()
-        }
-        minuid = ml[ml.length - 1].uid
-
-      })
+  let ml = res.data.data;
+  if (ml.length === 0) {
+    finishLoad = true
+    console.log(ml, ml.length, finishLoad)
+    return
+  }
+  for (let i = 0; i < ml.length; i++) {
+    ml[i].content=JSON.parse(ml[i].content)
+    messageList.value.unshift(ml[i])
+  }
+  if (minuid < 0) {
+    scrollToBottom()
+  }
+  minuid = ml[ml.length - 1].uid
+  loading=false
 }
 
 async function connect() {
   stomp.stomp = new Client({
-    brokerURL: "ws://localhost:8089" + "/ws",//可以不赋值，因为后面用SockJS来代替
+    brokerURL: "ws://192.168.1.23:8089" + "/ws",//可以不赋值，因为后面用SockJS来代替
     // connectHeaders: {"Authorization": this.token},
     debug: function (str) {
       console.log(str);
@@ -103,30 +104,58 @@ async function connect() {
 
 function subscribe() {
   finishLoad = false
+  loading=false
   minuid = -1
   connecting.value = undefined
-  messageList.length =0
+  messageList.value =[]
   imgurls = []
   loadMessage(props.groupId)
   stomp.subscription = stomp.stomp.subscribe("/forward/" + props.groupId, (message) => {
     let operation = JSON.parse(message.body)
+    console.log(operation)
     if (operation.type === "new") {
       let message=operation.message;
-      if (message.sender!==localStorage.getItem("username")){
-        message.content=JSON.parse(operation.message.content)
-        messageList.push(operation.message)
+      message.content=JSON.parse(operation.message.content)
+      if (message.sender!==localStorage.getItem("username")||sendByThis<=0){
+        messageList.value.push(operation.message)
+      }else if (message.sender===localStorage.getItem("username")&&sendByThis>0){
+        console.debug("接收到疑似自己发送的消息")
+        receivedMaySelf.set(message.uid,message)
+      }else {
+        console.debug("???")
       }
     }
   })
 }
-
+watch([receivedMaySelf,sendBySelf],([nr,or],[ns,os])=>{
+  let UidFind=[]
+  for (let [uid,m] of sendBySelf){
+    if (sendByThis<=0){
+      break
+    }
+    if (receivedMaySelf.has(uid)){
+      Object.assign(m,receivedMaySelf.get(uid))
+      Object.assign(m.content,receivedMaySelf.get(uid).content)
+      UidFind.push(uid)
+      receivedMaySelf.delete(uid)
+      sendByThis--;
+    }
+  }
+  for (let uid of UidFind) sendBySelf.delete(uid)
+  if (sendByThis===0){
+    for (let [k,m] of receivedMaySelf){
+      messageList.value.push(m)
+    }
+  }
+})
 function sendMessage() {
   message.type = "text"
   let newMessage=Object.assign({},message)
   newMessage.sender=localStorage.getItem("username")
   newMessage.content={text:newMessage.content}
   newMessage.sending=true
-  messageList.push(newMessage)
+  messageList.value.push(newMessage)
+  sendByThis++;
   scrollToBottom()
   axios.post("/message", message)
       .then(res => {
@@ -134,6 +163,7 @@ function sendMessage() {
         message.content = ""
         newMessage.uid=res.data.data
         newMessage.sending=false
+        sendBySelf.set(newMessage.uid,newMessage)
       })
 }
 
@@ -179,7 +209,8 @@ function uploadFile(e) {
       unit:units[index]
     }
   }
-  messageList.push(newMessage)
+  messageList.value.push(newMessage)
+  sendByThis++;
   scrollToBottom()
   axios.post("/message", formData, {
     'Content-type': 'multipart/form-data',
@@ -191,6 +222,8 @@ function uploadFile(e) {
   }).then(res => {
     fileBox.value.value = ""
     newMessage.uid=res.data.data
+    newMessage.sending=false
+    sendBySelf.set(newMessage.uid,newMessage)
   })
 }
 
