@@ -18,7 +18,7 @@ import GroupAdd from "@/components/group/GroupAdd.vue";
 import bus from "@/utils/EventBus.js";
 const group=useGroup()
 const show=useOverScreenBox()
-const groupList=ref([{groupName:'123'}])
+const groupList=ref([])
 const axios = inject("$axios");
 
 function loadGroupList(){

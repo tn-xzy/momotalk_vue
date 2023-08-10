@@ -9,7 +9,8 @@
     <div class="message-box">
       <div class="message-top" :style="self===message.sender?'flex-direction: row-reverse;':''">
         <span>{{ message.sender }}</span>
-        <span v-if="false">{{ time }}</span>
+        <span>&nbsp;</span>
+        <span v-if="true">{{ time }}</span>
       </div>
       <div class="message-inner">
         <div class="message-content" v-if="message.type==='text'">
@@ -82,13 +83,13 @@ watch(() => props.progress, (newP, oldP) => {
     margin: 0 15px;
     //display: flex;
     //flex-direction: column;
-
+    .message-top {
+      display: flex;
+      justify-content: space-between;
+      margin: 0 10px;
+    }
     .message-inner{
       position: relative;
-      .message-top {
-        display: flex;
-        justify-content: space-between;
-      }
       .message-content {
         display: flex;
         align-items: center;
