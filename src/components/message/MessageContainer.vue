@@ -32,7 +32,7 @@ import {throttle, debounce} from "lodash";
 
 const group = useGroup()
 const settings = useSettings()
-const apiPrefix = settings.apiPrefix
+const apiPrefix = import.meta.env.VITE_API_URL
 const messageList = ref([])
 const messageListBox = ref()
 const sendBySelf=reactive(new Map())
@@ -121,8 +121,6 @@ function subscribe() {
       }else if (message.sender===localStorage.getItem("username")&&sendByThis>0){
         console.debug("接收到疑似自己发送的消息")
         receivedMaySelf.set(message.uid,message)
-      }else {
-        console.debug("???")
       }
     }
   })
@@ -160,7 +158,7 @@ function sendMessage() {
   axios.post("/message", message)
       .then(res => {
         console.log(res)
-        message.content = ""
+        message.content = ''
         newMessage.uid=res.data.data
         newMessage.sending=false
         sendBySelf.set(newMessage.uid,newMessage)

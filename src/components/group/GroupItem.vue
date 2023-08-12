@@ -1,7 +1,7 @@
 <template>
     <div class="group-item">
         <el-avatar v-if="!groupInfo.avatar">{{ groupInfo.groupName }}</el-avatar>
-      <el-avatar v-else :src="groupInfo.avatar"></el-avatar>
+      <el-avatar v-else :src="apiPrefix+'/'+groupInfo.avatar"></el-avatar>
         <span class="group-name">{{ groupInfo.groupName }}</span>
     </div>
 </template>
@@ -11,6 +11,8 @@ import {reactive} from "vue";
 
 const props = defineProps(["group"])
 const groupInfo = props.group
+const apiPrefix = import.meta.env.VITE_API_URL
+
 </script>
 
 <style lang="scss" scoped>

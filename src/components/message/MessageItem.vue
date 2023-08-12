@@ -10,7 +10,7 @@
       <div class="message-top" :style="self===message.sender?'flex-direction: row-reverse;':''">
         <span>{{ message.sender }}</span>
         <span>&nbsp;</span>
-        <span v-if="true">{{ time }}</span>
+        <span v-if="message.uid">{{ time }}</span>
       </div>
       <div class="message-inner">
         <div class="message-content" v-if="message.type==='text'">
@@ -39,7 +39,7 @@
     </div>
   </div>
   <div class="message-system" v-if="message.type==='system'">
-    <span class="message-text">{{ message.content }}</span>
+    <span class="message-text">{{ message.content.text }}</span>
   </div>
 </template>
 

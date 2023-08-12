@@ -31,20 +31,19 @@ const show = useOverScreenBox()
 const groupInfo = reactive({
   groupName: "",
   groupAvatar: "/camera.png",
+  avatarFile:undefined
 })
 const axios = inject("$axios");
 function uploadAvatar(e){
   const file = e.target.files[0];
-  groupInfo.groupAvatar=file
-  let reader = new FileReader();
-  reader.readAsDataURL(file);
-  reader.onloadend = function(e) {
-    groupInfo.groupAvatar=e.target.result;
-  };
+  groupInfo.avatarFile=file
+  let URL = window.URL || window.webkitURL;
+  let imgURL = URL.createObjectURL(file);
+  groupInfo.groupAvatar=imgURL
 }
 function  createGroup(){
   const formData = new FormData();
-  formData.append("file",groupInfo.groupAvatar)
+  formData.append("file",groupInfo.avatarFile)
   formData.append("groupName",groupInfo.groupName)
   axios.post("/group", formData, {
     'Content-type': 'multipart/form-data'
